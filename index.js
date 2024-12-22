@@ -30,11 +30,22 @@ async function run() {
 
     // get posts data for home page
     app.get('/needVolunteerPost', async(req,res)=>{
-        const result = await posts.find().toArray()
+        const query = {}
+        const option = {
+            sort: { deadline: 1}
+        }
+        const result = await posts.find(query,option).limit(6).toArray()
         res.send(result)
     })
 
-
+    // post a data form add volunteer post page 
+    app.post('/addPost', async(req,res)=>{
+      const post = req.body;
+      const result = await posts.insertOne(post)
+      res.send(result)
+      // console.log(post);
+      
+    })
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
