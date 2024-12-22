@@ -39,14 +39,14 @@ async function run() {
 
     // get all posts data
     app.get("/allPost", async (req, res) => {
-      const search = req.query.search
+      const search = req.query.search;
       let query = {
-        postTitle:{
+        postTitle: {
           $regex: search,
-          $options: 'i',
-        }
-      }
-      
+          $options: "i",
+        },
+      };
+
       const result = await posts.find(query).toArray();
       res.send(result);
     });
@@ -82,17 +82,31 @@ async function run() {
       console.log(result);
     });
 
-
     // get myVolunteerNeed post by email
-    app.get('/myNeedPost', async(req,res)=>{
-      const email = req.query.email
-      const query = {'organizer.email': email}
+    app.get("/myNeedPost", async (req, res) => {
+      const email = req.query.email;
+      const query = { "organizer.email": email };
 
-      const result = await posts.find(query).toArray()
+      const result = await posts.find(query).toArray();
+      res.send(result);
+    });
+
+    // get myVolunteerRequested post by email
+    app.get("/myRequestedPost", async (req, res) => {
+      const email = req.query.email;
+      const query = { "volunteer.email": email };
+
+      const result = await volunteers.find(query).toArray();
+      res.send(result);
+    });
+
+    // delete my added post by id
+    app.delete("/delete/:id", async(req,res)=>{
+      const id = req.params.id
+      const query = { _id : new ObjectId(id)}
+
+      const result = await posts.deleteOne(query)
       res.send(result)
-      // console.log(email);
-      
-      
     })
 
     // Send a ping to confirm a successful connection
