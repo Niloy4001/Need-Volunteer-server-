@@ -25,6 +25,7 @@ async function run() {
     await client.connect();
 
     const posts = client.db("NeedVolunteer").collection("posts");
+    const volunteers = client.db("NeedVolunteer").collection("volunteers");
 
     // get posts data for home page
     app.get("/needVolunteerPost", async (req, res) => {
@@ -49,6 +50,14 @@ async function run() {
     app.post("/addPost", async (req, res) => {
       const post = req.body;
       const result = await posts.insertOne(post);
+      res.send(result);
+      // console.log(result);
+    });
+
+    // post volunteers data to database
+    app.post("/addVolunteer", async (req, res) => {
+      const post = req.body;
+      const result = await volunteers.insertOne(post);
       res.send(result);
       // console.log(result);
     });
