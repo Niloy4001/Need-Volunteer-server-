@@ -37,6 +37,20 @@ async function run() {
       res.send(result);
     });
 
+    // get all posts data
+    app.get("/allPost", async (req, res) => {
+      const search = req.query.search
+      let query = {
+        postTitle:{
+          $regex: search,
+          $options: 'i',
+        }
+      }
+      
+      const result = await posts.find(query).toArray();
+      res.send(result);
+    });
+
     // get a single post by id
     app.get(`/post/:id`, async (req, res) => {
       const id = req.params.id;
@@ -58,9 +72,28 @@ async function run() {
     app.post("/addVolunteer", async (req, res) => {
       const post = req.body;
       const result = await volunteers.insertOne(post);
+
+      const query = { _id: new ObjectId(post.postId) };
+      const updateDoc = {
+        $inc: { volunteersNeeded: -1 },
+      };
+      const update = await posts.updateOne(query, updateDoc);
       res.send(result);
-      // console.log(result);
+      console.log(result);
     });
+
+
+    // get myVolunteerNeed post by email
+    app.get('/myNeedPost', async(req,res)=>{
+      const email = req.query.email
+      const query = {'organizer.email': email}
+
+      const result = await posts.find(query).toArray()
+      res.send(result)
+      // console.log(email);
+      
+      
+    })
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
