@@ -1,12 +1,18 @@
 require("dotenv").config();
 const express = require("express");
+var jwt = require('jsonwebtoken');
+var cookieParser = require('cookie-parser')
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const app = express();
 const cors = require("cors");
 const port = 4000;
 
-app.use(cors());
+app.use(cors({
+  origin:['http://localhost:5174'],
+  credentials:true,
+}));
 app.use(express.json());
+app.use(cookieParser())
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster1.hcojg.mongodb.net/?retryWrites=true&w=majority&appName=Cluster1`;
 
@@ -19,6 +25,30 @@ const client = new MongoClient(uri, {
   },
 });
 
+
+// verifyToken
+const verifyToken = (req, res, next) => {
+  const token = req.cookies?.token
+  // console.log(token);
+  
+  
+  if (!token) {
+    return res.status(401).send({ message: 'unauthorized access' })
+  }
+  
+  jwt.verify(token, process.env.ACCESS_TOKEN, (err, decoded) => {
+ 
+    if (err) {
+      return res.status(401).send({ message: 'unauthorized access' })
+    }
+    req.user = decoded
+  })
+
+  
+
+  next()
+}
+
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
@@ -26,6 +56,34 @@ async function run() {
 
     const posts = client.db("NeedVolunteer").collection("posts");
     const volunteers = client.db("NeedVolunteer").collection("volunteers");
+
+
+    // generate jwt
+    app.post("/jwt", (req,res)=>{
+      const email = req.body
+      const token = jwt.sign(email, process.env.ACCESS_TOKEN, {expiresIn: '365d'})
+
+      res.cookie('token', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
+      })
+      .send({ success: true })
+    })
+
+    // clear coockie
+    app.get('/logout', (req,res)=>{
+      console.log('in logout route');
+      
+      res.clearCookie('token',{
+        httpOnly:true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
+      }).send({message: true})
+
+      console.log('cookies cleared');
+      
+    })
 
     // get posts data for home page
     app.get("/needVolunteerPost", async (req, res) => {
@@ -55,8 +113,16 @@ async function run() {
     app.get(`/post/:id`, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
-
+      const decodedEmail = req.user?.email
       const result = await posts.findOne(query);
+
+      // if (decodedEmail !== result.organizer.email) {
+      //   return res.status(401).send({message: "unAuthorized Access"})
+      // }
+      console.log(decodedEmail);
+      
+      console.log(result.organizer.email);
+      
       res.send(result);
     });
 
@@ -79,23 +145,32 @@ async function run() {
       };
       const update = await posts.updateOne(query, updateDoc);
       res.send(result);
-      console.log(result);
+      // console.log(result);
     });
 
     // get myVolunteerNeed post by email
-    app.get("/myNeedPost", async (req, res) => {
+    app.get("/myNeedPost",verifyToken, async (req, res) => {
       const email = req.query.email;
       const query = { "organizer.email": email };
+      const decodedEmail = req.user?.email
+      // console.log(decodedEmail);
+      
+      if (decodedEmail !== email)
+        return res.status(401).send({ message: 'unauthorized access' })
 
       const result = await posts.find(query).toArray();
       res.send(result);
     });
 
     // get myVolunteerRequested post by email
-    app.get("/myRequestedPost", async (req, res) => {
+    app.get("/myRequestedPost",verifyToken, async (req, res) => {
       const email = req.query.email;
+      const decodedEmail = req.user?.email
       const query = { "volunteer.email": email };
 
+      if (decodedEmail !== email) {
+        return res.status(401).send({message: 'unAuthorized Access'})
+      }
       const result = await volunteers.find(query).toArray();
       res.send(result);
     });
