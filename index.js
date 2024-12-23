@@ -101,22 +101,45 @@ async function run() {
     });
 
     // delete my added post by id
-    app.delete("/delete/:id", async(req,res)=>{
-      const id = req.params.id
-      const query = { _id : new ObjectId(id)}
+    app.delete("/delete/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
 
-      const result = await posts.deleteOne(query)
-      res.send(result)
-    })
-    
+      const result = await posts.deleteOne(query);
+      res.send(result);
+    });
+
     // delete my requested post by id
-    app.delete("/deleteRequestedPost/:id", async(req,res)=>{
-      const id = req.params.id
-      const query = { _id : new ObjectId(id)}
+    app.delete("/deleteRequestedPost/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
 
-      const result = await volunteers.deleteOne(query)
+      const result = await volunteers.deleteOne(query);
+      res.send(result);
+    });
+
+    // update a document
+    app.put("/update/:id", async (req, res) => {
+      const id = req.params.id;
+      const updatedePost = req.body;
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          thumbnail: updatedePost.thumbnail,
+          postTitle: updatedePost.postTitle,
+          description: updatedePost.description,
+          category: updatedePost.category,
+          location: updatedePost.location,
+          volunteersNeeded: updatedePost.volunteersNeeded,
+          deadline: updatedePost.deadline,
+          organizer: { name: updatedePost.name, email: updatedePost.email },
+          status: updatedePost.status,
+        },
+      };
+
+      const result = await posts.updateOne(filter, updateDoc);
       res.send(result)
-    })
+    });
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
