@@ -9,7 +9,7 @@ const port = 4000;
 
 app.use(
   cors({
-    origin: ["http://localhost:5173","https://need-volunteer-40.netlify.app"],
+    origin: ["http://localhost:5173", "https://need-volunteer-40.netlify.app"],
     credentials: true,
   })
 );
@@ -27,23 +27,24 @@ const client = new MongoClient(uri, {
   },
 });
 
-// // verifyToken
-// const verifyToken = (req, res, next) => {
-//   const token = req.cookies?.token;
 
-//   if (!token) {
-//     return res.status(401).send({ message: "unauthorized access" });
-//   }
 
-//   jwt.verify(token, process.env.ACCESS_TOKEN, (err, decoded) => {
-//     if (err) {
-//       return res.status(401).send({ message: "unauthorized access" });
-//     }
-//     req.user = decoded;
-//   });
+// verifyjwtToken
+const verifyToken = (req, res, next) => {
+  const token = req.cookies.token;
+  if (!token) {
+    return res.status(401).send({message:"unAuthorized Access"})
+  }
+  jwt.verify(token, process.env.ACCESS_TOKEN,(err,decoded)=>{
+    if (err) {
+      return res.status(401).send({message:"unAuthorizeddd accessss"})  
+    }
+    req.user = decoded
+    next();
+  })
+  // console.log(req.user.email);
 
-//   next();
-// };
+};
 
 async function run() {
   try {
@@ -53,38 +54,64 @@ async function run() {
     const posts = client.db("NeedVolunteer").collection("posts");
     const volunteers = client.db("NeedVolunteer").collection("volunteers");
 
-    // generate jwt
+    // // generate jwt
+    // app.post("/jwt", (req, res) => {
+    //   const email = req.body;
+    //   const token = jwt.sign(email, process.env.ACCESS_TOKEN, {
+    //     expiresIn: "365d",
+    //   });
+
+    //   res
+    //     .cookie("token", token, {
+    //       httpOnly: true,
+    //       secure: process.env.NODE_ENV === "production",
+    //       sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+    //     })
+    //     .send({ success: true });
+    // });
+
+    // // clear coockie
+    // app.get("/logout", (req, res) => {
+    //   console.log("in logout route");
+
+    //   res
+    //     .clearCookie("token", {
+    //       httpOnly: true,
+    //       secure: process.env.NODE_ENV === "production",
+    //       sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+    //     })
+    //     .send({ message: true });
+
+    //   console.log("cookies cleared");
+    // });
+
+    // get posts data for home page
+
+    // jwt
     app.post("/jwt", (req, res) => {
       const email = req.body;
-      const token = jwt.sign(email, process.env.ACCESS_TOKEN, {
-        expiresIn: "365d",
-      });
 
+      const token = jwt.sign(email, process.env.ACCESS_TOKEN, {
+        expiresIn: "2h",
+      });
       res
         .cookie("token", token, {
           httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+          secure: false,
         })
-        .send({ success: true });
+        .send({ message: true });
     });
 
-    // clear coockie
+    // clear token during log out
     app.get("/logout", (req, res) => {
-      console.log("in logout route");
-
       res
         .clearCookie("token", {
           httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+          secure: false,
         })
         .send({ message: true });
-
-      console.log("cookies cleared");
     });
 
-    // get posts data for home page
     app.get("/needVolunteerPost", async (req, res) => {
       const query = {};
       const option = {
@@ -109,7 +136,7 @@ async function run() {
     });
 
     // get a single post by id
-    app.get(`/post/:id`, async (req, res) => {
+    app.get(`/post/:id`,verifyToken, async (req, res) => {
       const id = req.params.id;
       const email = req.query.email;
       const query = { _id: new ObjectId(id) };
@@ -126,7 +153,7 @@ async function run() {
     });
 
     // post a data form add volunteer post page
-    app.post("/addPost",async (req, res) => {
+    app.post("/addPost", async (req, res) => {
       const post = req.body;
       // const email = req.query.email;
       // // const decodedEmail = req.user?.email;
@@ -154,28 +181,31 @@ async function run() {
     });
 
     // get myVolunteerNeed post by email
-    app.get("/myNeedPost",  async (req, res) => {
+    app.get("/myNeedPost",verifyToken, async (req, res) => {
       const email = req.query.email;
       const query = { "organizer.email": email };
       const decodedEmail = req.user?.email;
       // console.log(query);
 
-      // if (decodedEmail !== email)
-      //   return res.status(401).send({ message: "unauthorized access" });
+      if (decodedEmail !== email)
+        return res.status(403).send({ message: "Forbidden" });
 
       const result = await posts.find(query).toArray();
       res.send(result);
     });
 
     // get myVolunteerRequested post by email
-    app.get("/myRequestedPost", async (req, res) => {
+    app.get("/myRequestedPost",verifyToken, async (req, res) => {
       const email = req.query.email;
       const decodedEmail = req.user?.email;
       const query = { "volunteer.email": email };
+      // console.log(decodedEmail);
+      // console.log(query);
+      
 
-      // if (decodedEmail !== email) {
-      //   return res.status(401).send({ message: "unAuthorized Access" });
-      // }
+      if (decodedEmail !== email) {
+        return res.status(403).send({ message: "Forbidden" });
+      }
       const result = await volunteers.find(query).toArray();
       res.send(result);
     });
@@ -212,10 +242,12 @@ async function run() {
           location: updatedePost.location,
           volunteersNeeded: updatedePost.volunteersNeeded,
           deadline: updatedePost.deadline,
-          organizer: { name: updatedePost.name, email: updatedePost.email },
+          organizer: { name: updatedePost.organizer.name, email: updatedePost.organizer.email },
           status: updatedePost.status,
         },
       };
+      console.log(updateDoc);
+      
 
       const result = await posts.updateOne(filter, updateDoc);
       res.send(result);
