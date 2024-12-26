@@ -9,7 +9,7 @@ const port = 4000;
 
 app.use(
   cors({
-    origin: ["http://localhost:5173", "https://need-volunteer-40.netlify.app"],
+    origin: ["https://need-volunteer-40.netlify.app"],
     credentials: true,
   })
 );
