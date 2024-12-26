@@ -27,23 +27,20 @@ const client = new MongoClient(uri, {
   },
 });
 
-
-
 // verifyjwtToken
 const verifyToken = (req, res, next) => {
   const token = req.cookies.token;
   if (!token) {
-    return res.status(401).send({message:"unAuthorized Access"})
+    return res.status(401).send({ message: "unAuthorized Access" });
   }
-  jwt.verify(token, process.env.ACCESS_TOKEN,(err,decoded)=>{
+  jwt.verify(token, process.env.ACCESS_TOKEN, (err, decoded) => {
     if (err) {
-      return res.status(401).send({message:"unAuthorizeddd accessss"})  
+      return res.status(401).send({ message: "unAuthorizeddd accessss" });
     }
-    req.user = decoded
+    req.user = decoded;
     next();
-  })
+  });
   // console.log(req.user.email);
-
 };
 
 async function run() {
@@ -53,6 +50,7 @@ async function run() {
 
     const posts = client.db("NeedVolunteer").collection("posts");
     const volunteers = client.db("NeedVolunteer").collection("volunteers");
+    const blogs = client.db("NeedVolunteer").collection("blogs");
 
     // // generate jwt
     // app.post("/jwt", (req, res) => {
@@ -97,7 +95,8 @@ async function run() {
       res
         .cookie("token", token, {
           httpOnly: true,
-          secure: false,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
         })
         .send({ message: true });
     });
@@ -107,7 +106,8 @@ async function run() {
       res
         .clearCookie("token", {
           httpOnly: true,
-          secure: false,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
         })
         .send({ message: true });
     });
@@ -136,7 +136,7 @@ async function run() {
     });
 
     // get a single post by id
-    app.get(`/post/:id`,verifyToken, async (req, res) => {
+    app.get(`/post/:id`, verifyToken, async (req, res) => {
       const id = req.params.id;
       const email = req.query.email;
       const query = { _id: new ObjectId(id) };
@@ -153,13 +153,13 @@ async function run() {
     });
 
     // post a data form add volunteer post page
-    app.post("/addPost", async (req, res) => {
+    app.post("/addPost", verifyToken, async (req, res) => {
       const post = req.body;
-      // const email = req.query.email;
-      // // const decodedEmail = req.user?.email;
-      // // console.log(email);
-      // // if (decodedEmail !== email)
-      // //   return res.status(401).send({ message: "unauthorized access" });
+      const email = req.query.email;
+      const decodedEmail = req.user?.email;
+      // console.log(email);
+      if (decodedEmail !== email)
+        return res.status(401).send({ message: "unauthorized access" });
 
       const result = await posts.insertOne(post);
       res.send(result);
@@ -181,7 +181,7 @@ async function run() {
     });
 
     // get myVolunteerNeed post by email
-    app.get("/myNeedPost",verifyToken, async (req, res) => {
+    app.get("/myNeedPost", verifyToken, async (req, res) => {
       const email = req.query.email;
       const query = { "organizer.email": email };
       const decodedEmail = req.user?.email;
@@ -195,13 +195,12 @@ async function run() {
     });
 
     // get myVolunteerRequested post by email
-    app.get("/myRequestedPost",verifyToken, async (req, res) => {
+    app.get("/myRequestedPost", verifyToken, async (req, res) => {
       const email = req.query.email;
       const decodedEmail = req.user?.email;
       const query = { "volunteer.email": email };
       // console.log(decodedEmail);
       // console.log(query);
-      
 
       if (decodedEmail !== email) {
         return res.status(403).send({ message: "Forbidden" });
@@ -222,6 +221,18 @@ async function run() {
     // delete my requested post by id
     app.delete("/deleteRequestedPost/:id", async (req, res) => {
       const id = req.params.id;
+
+      // increament after deleting
+      const postId = req.query?.postId;
+      const filter = {_id: new ObjectId(postId)}
+      const updateDoc = {
+        $inc: { volunteersNeeded: 1 },
+      };
+
+      const post = await posts.updateOne(filter, updateDoc);
+      // console.log(post);
+
+      // delete operation
       const query = { _id: new ObjectId(id) };
 
       const result = await volunteers.deleteOne(query);
@@ -242,17 +253,24 @@ async function run() {
           location: updatedePost.location,
           volunteersNeeded: updatedePost.volunteersNeeded,
           deadline: updatedePost.deadline,
-          organizer: { name: updatedePost.organizer.name, email: updatedePost.organizer.email },
+          organizer: {
+            name: updatedePost.organizer.name,
+            email: updatedePost.organizer.email,
+          },
           status: updatedePost.status,
         },
       };
       console.log(updateDoc);
-      
 
       const result = await posts.updateOne(filter, updateDoc);
       res.send(result);
     });
 
+    // get blogs
+    app.get("/blogs", async (req, res) => {
+      const result = await blogs.find().toArray();
+      res.send(result);
+    });
     // Send a ping to confirm a successful connection
     // await client.db("admin").command({ ping: 1 });
     console.log(
