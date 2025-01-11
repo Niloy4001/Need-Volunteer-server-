@@ -9,7 +9,7 @@ const port = 4000;
 
 app.use(
   cors({
-    origin: ["http://localhost:5174","https://need-volunteer-40.netlify.app"],
+    origin: ["http://localhost:5173", "https://need-volunteer-40.netlify.app"],
     credentials: true,
   })
 );
@@ -26,6 +26,7 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   },
 });
+
 
 // verifyjwtToken
 const verifyToken = (req, res, next) => {
@@ -51,39 +52,6 @@ async function run() {
     const posts = client.db("NeedVolunteer").collection("posts");
     const volunteers = client.db("NeedVolunteer").collection("volunteers");
     const blogs = client.db("NeedVolunteer").collection("blogs");
-
-    // // generate jwt
-    // app.post("/jwt", (req, res) => {
-    //   const email = req.body;
-    //   const token = jwt.sign(email, process.env.ACCESS_TOKEN, {
-    //     expiresIn: "365d",
-    //   });
-
-    //   res
-    //     .cookie("token", token, {
-    //       httpOnly: true,
-    //       secure: process.env.NODE_ENV === "production",
-    //       sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
-    //     })
-    //     .send({ success: true });
-    // });
-
-    // // clear coockie
-    // app.get("/logout", (req, res) => {
-    //   console.log("in logout route");
-
-    //   res
-    //     .clearCookie("token", {
-    //       httpOnly: true,
-    //       secure: process.env.NODE_ENV === "production",
-    //       sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
-    //     })
-    //     .send({ message: true });
-
-    //   console.log("cookies cleared");
-    // });
-
-    // get posts data for home page
 
     // jwt
     app.post("/jwt", (req, res) => {
@@ -142,12 +110,6 @@ async function run() {
       const query = { _id: new ObjectId(id) };
       const decodedEmail = req.user?.email;
       const result = await posts.findOne(query);
-
-      // if (decodedEmail !== email) {
-      //   return res.status(401).send({ message: "unAuthorized Access" });
-      // }
-
-      // console.log(result.organizer.email);
 
       res.send(result);
     });
@@ -224,7 +186,7 @@ async function run() {
 
       // increament after deleting
       const postId = req.query?.postId;
-      const filter = {_id: new ObjectId(postId)}
+      const filter = { _id: new ObjectId(postId) };
       const updateDoc = {
         $inc: { volunteersNeeded: 1 },
       };
